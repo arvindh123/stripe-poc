@@ -31,7 +31,7 @@ export default function  Checkout() {
     <>
       {
         payment ?
-          <Elements stripe={stripePromise} options={ { clientSecret: (payment as string)}}  appearance={appearance} la>
+          <Elements stripe={stripePromise} options={ { clientSecret: (payment as string)}}  appearance={appearance}>
             <CheckoutForm orgId={(orgId as string)} payment={(payment as string)}/>
           </Elements>
           :

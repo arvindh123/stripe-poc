@@ -12,7 +12,7 @@ export default function CheckoutForm({ orgId, payment }: {orgId: string, payment
     const [isProcessing, setIsProcessing] = useState(false)
     const [checking, setChecking] = useState(true)
 
-    const checkPay = async (): Boolean => {
+    const checkPay = async (): Promise<Boolean> => {
         const pi = await stripe?.retrievePaymentIntent(payment)
         if (pi?.error) {
             setMessage("Failed to get payment : " + pi.error.message)
