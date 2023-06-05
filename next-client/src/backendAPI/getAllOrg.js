@@ -1,4 +1,4 @@
-const apiURL = process.env.APIURL ? process.env.APIURL : `http://localhost:8080`
+const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL :`http://localhost:8080`
 
 export const getAllOrg = async () => {
     const res = await fetch(`${apiURL}/organization`, { cache: 'no-store' })

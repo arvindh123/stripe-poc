@@ -13,7 +13,7 @@ export default function  Checkout() {
     const payment = searchParams.get("payment")
     const orgId = searchParams.get("id")
 
-    const apiURL = process.env.APIURL ? process.env.APIURL : `http://localhost:8080`
+    const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL :`http://localhost:8080`
     useEffect(() => {
       fetch(`${apiURL}/config`).then( async(r) => {
         const { publishableKey } = await r.json()

@@ -25,7 +25,7 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
 
     const handleSubmit = async (plan: string): Promise<void> => {
         setIsProcessing(true)
-        const apiURL = process.env.APIURL ? process.env.APIURL : `http://localhost:8080`
+        const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL :`http://localhost:8080`
         try {
             const result = await fetch(`${apiURL}/organization/${org.id}/sub`, {
                 body: JSON.stringify({ plan: `${plan}` }),
