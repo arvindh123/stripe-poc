@@ -67,7 +67,7 @@ type Organization struct {
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatalf("godotenv.Load: %v", err)
+		log.Printf("godotenv.Load: %v", err)
 	}
 
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
