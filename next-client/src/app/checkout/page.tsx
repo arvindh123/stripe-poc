@@ -12,8 +12,10 @@ export default function  Checkout() {
     const searchParams = useSearchParams();
     const payment = searchParams.get("payment")
     const orgId = searchParams.get("id")
+
+    const baseURL = process.env.BASEURL ? process.env.BASEURL : `http://localhost:8080`
     useEffect(() => {
-      fetch("http://localhost:8080/config").then( async(r) => {
+      fetch(`${baseURL}/config`).then( async(r) => {
         const { publishableKey } = await r.json()
         setStripePromise(loadStripe(publishableKey))
       })

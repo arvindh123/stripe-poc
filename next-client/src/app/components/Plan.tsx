@@ -25,8 +25,9 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
 
     const handleSubmit = async (plan: string): Promise<void> => {
         setIsProcessing(true)
+        const baseURL = process.env.BASEURL ? process.env.BASEURL : `http://localhost:8080`
         try {
-            const result = await fetch(`http://localhost:8080/organization/${org.id}/sub`, {
+            const result = await fetch(`${baseURL}/organization/${org.id}/sub`, {
                 body: JSON.stringify({ plan: `${plan}` }),
                 method: "post",
                 headers: {
