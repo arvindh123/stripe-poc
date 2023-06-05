@@ -106,13 +106,13 @@ func main() {
 
 	fmt.Println("Starting Server")
 
-	host := os.Getenv("BACKEND_HOST")
-	port := os.Getenv("BACKEND_PORT")
+	host := os.Getenv("HOST")
+	port := os.Getenv("PORT")
 	if host == "" {
 		host = "0.0.0.0"
 	}
 	if port == "" {
-		port = "8080"
+		port = "3000"
 	}
 	log.Fatalln(http.ListenAndServe(host+":"+port, handler))
 
