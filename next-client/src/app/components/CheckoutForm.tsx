@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react";
+import { StripeElements } from "@stripe/stripe-js";
 import { Button } from "flowbite-react"
 import { useStripe, useElements, PaymentElement, CardElement } from "@stripe/react-stripe-js"
 
@@ -75,16 +76,16 @@ export default function CheckoutForm({ orgId, payment }: {orgId: string, payment
 
     const confirmPay = async () => {
         const reUrl = orgId ? "organization/" + orgId : ""
-        const { paymentIntent, error  } = await stripe?.confirmPayment({
+        const pis = await stripe?.confirmPayment({
             elements: elements,
             confirmParams: {
                 return_url: `${window.location.origin}/${reUrl}`
             },
             // redirect: "if_required",
         })
-        if (error) {
-            if ((error.payment_intent) && (error.payment_intent.status)) {
-                switch (error.payment_intent.status) {
+        if (pis?.error) {
+            if ((pis.error.payment_intent) && (pis.error.payment_intent.status)) {
+                switch (pis.error.payment_intent.status) {
                     case "succeeded":
                         setMessage("Paid already")
                         break;
@@ -92,21 +93,10 @@ export default function CheckoutForm({ orgId, payment }: {orgId: string, payment
                         setMessage("Payment Indent Canceled")
                         break;
                     default:
-                        setMessage(error.message + "payment indent status : " + error.payment_intent.status)
+                        setMessage(pis.error.message + "\n\npayment indent status : " + pis.error.payment_intent.status)
                 }
             } else {
-                setMessage(error.message)
-            }
-        }else {
-            switch (paymentIntent.status) {
-                case "succeeded":
-                    setMessage("Paid already")
-                    break;
-                case "canceled":
-                    setMessage("Payment Indent Canceled")
-                    break;
-                default:
-                    setMessage(error.message + "payment indent status : " + error.payment_intent.status)
+                setMessage(pis.error.message)
             }
         }
     }

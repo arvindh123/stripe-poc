@@ -1,6 +1,6 @@
 "use client"
 import { Elements, PaymentElement } from '@stripe/react-stripe-js';
-import { Stripe, loadStripe} from '@stripe/stripe-js';
+import { Stripe, StripeElement, StripeElementsOptions, loadStripe} from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CheckoutForm from "../components/CheckoutForm"
@@ -31,7 +31,7 @@ export default function  Checkout() {
     <>
       {
         payment ?
-          <Elements stripe={stripePromise} options={ { clientSecret: (payment as string)}}  appearance={appearance}>
+          <Elements stripe={stripePromise} options={ ({ clientSecret: (payment as string), appearance: appearance } as StripeElementsOptions )} >
             <CheckoutForm orgId={(orgId as string)} payment={(payment as string)}/>
           </Elements>
           :
