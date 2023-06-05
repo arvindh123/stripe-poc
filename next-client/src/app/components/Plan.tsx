@@ -6,6 +6,7 @@ import { RxCross1 } from 'react-icons/rx'
 import { useState } from 'react';
 import { TOrg, TPrice } from '../../interface/all'
 import { getSub } from '../../backendAPI/getAllOrg'
+import { MdOutlineKeyboardBackspace } from 'react-icons/md'
 
 export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
 
@@ -25,7 +26,7 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
 
     const handleSubmit = async (plan: string): Promise<void> => {
         setIsProcessing(true)
-        const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL :`http://localhost:8080`
+        const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL : `http://localhost:8080`
         try {
             const result = await fetch(`${apiURL}/organization/${org.id}/sub`, {
                 body: JSON.stringify({ plan: `${plan}` }),
@@ -57,6 +58,14 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
     };
     return (
         <>
+
+            <div className="relative h-16 w-1/3 flex align-middle items-center justify-center ">
+                <button onClick={() => { router.push(`/organization/${org.id}`) }} className='absolute left-0 top-0 h-1 w-16'>
+                    <MdOutlineKeyboardBackspace className="text-4xl  text-gray-100 dark:text-gray-900" title='Back' />
+                    <p className="absolute left-10 top-1 h-1 w-16 font-normal text-gray-100 dark:text-gray-900"> Back </p>
+                </button>
+            </div>
+
             <div className='grid grid-cols-2 gap-32'>
 
                 <>
