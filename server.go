@@ -105,7 +105,16 @@ func main() {
 	handler := c.Handler(mux)
 
 	fmt.Println("Starting Server")
-	log.Fatalln(http.ListenAndServe("127.0.0.1:8080", handler))
+
+	host := os.Getenv("BACKEND_HOST")
+	port := os.Getenv("BACKEND_PORT")
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	if port == "" {
+		port = "8080"
+	}
+	log.Fatalln(http.ListenAndServe(host+":"+port, handler))
 
 }
 
