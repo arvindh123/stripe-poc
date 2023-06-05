@@ -25,7 +25,8 @@ export default function Create() {
     const router = useRouter();
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
-        fetch("http://localhost:8080/organization/create", {
+        const apiURL = process.env.APIURL ? process.env.APIURL : `http://localhost:8080`
+        fetch(`${apiURL}/organization/create`, {
             body: JSON.stringify({ name: `${name}`, email: `${email}` }),
             method: "post",
             headers: {
