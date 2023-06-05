@@ -1,8 +1,8 @@
+// @ts-nocheck
 "use client"
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react"
 import { useStripe, useElements, PaymentElement, CardElement } from "@stripe/react-stripe-js"
-import { ConfirmPay } from "./ConfirmPay";
 
 
 export default function CheckoutForm({ orgId, payment }: {orgId: string, payment: string}) {
@@ -76,32 +76,32 @@ export default function CheckoutForm({ orgId, payment }: {orgId: string, payment
     }
 
 
-    // const confirmPay = async () => {
-    //     const reUrl = orgId ? "organization/" + orgId : ""
-    //     const pis = await stripe?.confirmPayment({
-    //         elements: elements,
-    //         confirmParams: {
-    //             return_url: `${window.location.origin}/${reUrl}`
-    //         },
-    //         redirect: "always",
-    //     })
-    //     if (pis?.error) {
-    //         if ((pis.error.payment_intent) && (pis.error.payment_intent.status)) {
-    //             switch (pis.error.payment_intent.status) {
-    //                 case "succeeded":
-    //                     setMessage("Paid already")
-    //                     break;
-    //                 case "canceled":
-    //                     setMessage("Payment Indent Canceled")
-    //                     break;
-    //                 default:
-    //                     setMessage(pis.error.message + "\n\npayment indent status : " + pis.error.payment_intent.status)
-    //             }
-    //         } else {
-    //             setMessage(pis.error.message)
-    //         }
-    //     }
-    // }
+    const confirmPay = async () => {
+        const reUrl = orgId ? "organization/" + orgId : ""
+        const pis = await stripe?.confirmPayment({
+            elements: elements,
+            confirmParams: {
+                return_url: `${window.location.origin}/${reUrl}`
+            },
+            redirect: "always",
+        })
+        if (pis?.error) {
+            if ((pis.error.payment_intent) && (pis.error.payment_intent.status)) {
+                switch (pis.error.payment_intent.status) {
+                    case "succeeded":
+                        setMessage("Paid already")
+                        break;
+                    case "canceled":
+                        setMessage("Payment Indent Canceled")
+                        break;
+                    default:
+                        setMessage(pis.error.message + "\n\npayment indent status : " + pis.error.payment_intent.status)
+                }
+            } else {
+                setMessage(pis.error.message)
+            }
+        }
+    }
 
     useEffect(() => {
         (async () => {
@@ -118,7 +118,7 @@ export default function CheckoutForm({ orgId, payment }: {orgId: string, payment
             return
         }
         setIsProcessing(true)
-        await ConfirmPay(orgId, stripe, setMessage)
+        await confirmPay(orgId, stripe, setMessage)
         setIsProcessing(false)
     }
 
