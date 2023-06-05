@@ -51,13 +51,13 @@ export default function  Checkout() {
         <p>
           CVC: Any number 123
         </p>
-        <Link href="https://stripe.com/docs/testing" target="_blank" className='font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600'>
-          <p>
+        <Link href="https://stripe.com/docs/testing" target="_blank">
+          <p  className='font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600'>
             Click here to know about test card numbers
           </p>
         </Link>
-        <Link href="https://stripe.com/docs/india-recurring-payments?" target="_blank" className='font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600'>
-            <p>
+        <Link href="https://stripe.com/docs/india-recurring-payments?" target="_blank">
+            <p  className='font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600'>
               Click here to know about e-Mandate required for India
             </p>
         </Link>
