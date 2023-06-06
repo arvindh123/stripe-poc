@@ -20,7 +20,6 @@ import (
 	"github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/customer"
 	"github.com/stripe/stripe-go/v74/invoice"
-	"github.com/stripe/stripe-go/v74/paymentintent"
 	"github.com/stripe/stripe-go/v74/paymentmethod"
 	"github.com/stripe/stripe-go/v74/price"
 	"github.com/stripe/stripe-go/v74/product"
@@ -92,15 +91,14 @@ func main() {
 	mux.Get("/organization/:id", middlewareGetID(http.HandlerFunc(getOrgById)))
 	mux.Get("/organization/:id/sub", middlewareGetID(http.HandlerFunc(getSubscriptionInfo)))
 	mux.Post("/organization/:id/sub", middlewareGetID(http.HandlerFunc(createSubscription)))
+	mux.Put("/organization/:id/sub", middlewareGetID(http.HandlerFunc(updateSubscription)))
 	mux.Delete("/organization/:id/sub", middlewareGetID(http.HandlerFunc(cancelSubscription)))
-	mux.Patch("/organization/:id/sub", middlewareGetID(http.HandlerFunc(updateSubscription)))
 	mux.Get("/organization/:id/payment-method", middlewareGetID(http.HandlerFunc(retrievePaymentMethod)))
-	mux.Get("/organization/:id/add-payment-method", middlewareGetID(http.HandlerFunc(retrievePaymentMethod)))
 	mux.Post("/stripe/webhook", http.HandlerFunc(handleWebhook))
 
 	c := cors.New(cors.Options{
-		AllowedMethods:   []string{"HEAD", "GET", "POST", "PATCH", "UPDATE", "DELETE", "PUT", "OPTIONS"},
-		AllowCredentials: true,
+		AllowedMethods: []string{"HEAD", "GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"},
+		AllowedOrigins: []string{"http://localhost:3000"},
 	})
 	handler := c.Handler(mux)
 
@@ -282,38 +280,86 @@ func getSubscriptionInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid organization context", http.StatusInternalServerError)
 		return
 	}
-	params := &stripe.SubscriptionParams{}
-	s, err := sub.Get(organization.StripeSubID, params)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-		log.Printf("sub.New: %v", err)
-		return
-	}
-	s.LatestInvoice, err = invoice.Get(s.LatestInvoice.ID, nil)
-	if err != nil {
-		http.Error(w, "Can't able to get invoice error:"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	s.LatestInvoice.PaymentIntent, err = paymentintent.Get(s.LatestInvoice.PaymentIntent.ID, nil)
-	if err != nil {
-		http.Error(w, "Can't able to get payment intent error:"+err.Error(), http.StatusInternalServerError)
-		return
+
+	subId := strings.TrimSpace(organization.StripeSubID)
+
+	switch {
+	case (subId != ""):
+		subscriptionParams := &stripe.SubscriptionParams{}
+		subscriptionParams.AddExpand("latest_invoice.payment_intent")
+		s, err := sub.Get(subId, subscriptionParams)
+		switch {
+		case strings.Contains(err.Error(), "resource_missing"):
+			http.Error(w, "subscription already canceled, still if your are seeing this subscription , please cancel it again", http.StatusUnprocessableEntity)
+			return
+		case err != nil:
+			http.Error(w, "failed to retrieve the subscriptions : "+err.Error(), http.StatusUnprocessableEntity)
+			log.Printf("sub.New: %v", err)
+			return
+		}
+
+		if string(s.Status) != organization.SubStatus {
+			if err := updateSub(*s); err != nil {
+				http.Error(w, "failed to updated subscriptions in platform : "+err.Error(), http.StatusUnprocessableEntity)
+				return
+			}
+		}
+		var cs string = ""
+		if (s.LatestInvoice.PaymentIntent != nil) && (s.LatestInvoice.PaymentIntent.ClientSecret != "") {
+			cs = s.LatestInvoice.PaymentIntent.ClientSecret
+		}
+		writeJSON(w, struct {
+			SubscriptionID     string `json:"subscriptionId"`
+			SubscriptionStatus string `json:"subscriptionStatus"`
+			ClientSecret       string `json:"clientSecret"`
+		}{
+			SubscriptionID:     s.ID,
+			SubscriptionStatus: string(s.Status),
+			ClientSecret:       cs,
+		})
+
+	default:
+		custParams := &stripe.CustomerParams{}
+		custParams.AddExpand("subscriptions.data")
+		custParams.AddExpand("subscriptions.data.items.data")
+		custParams.AddExpand("subscriptions.data.latest_invoice.payment_intent")
+		ch, err := customer.Get(organization.StripeID, custParams)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			log.Printf("sub.New: %v", err)
+			return
+		}
+
+		switch len(ch.Subscriptions.Data) {
+		case 0:
+			http.Error(w, "no subscriptions found", http.StatusNotFound)
+			return
+		case 1:
+			s := ch.Subscriptions.Data[0]
+			if err := createSub(*s); err != nil {
+				http.Error(w, "failed to updated subscriptions in platform : "+err.Error(), http.StatusUnprocessableEntity)
+				return
+			}
+			var cs string = ""
+			if (s.LatestInvoice.PaymentIntent != nil) && (s.LatestInvoice.PaymentIntent.ClientSecret != "") {
+				cs = s.LatestInvoice.PaymentIntent.ClientSecret
+			}
+			writeJSON(w, struct {
+				SubscriptionID     string `json:"subscriptionId"`
+				SubscriptionStatus string `json:"subscriptionStatus"`
+				ClientSecret       string `json:"clientSecret"`
+			}{
+				SubscriptionID:     s.ID,
+				SubscriptionStatus: string(s.Status),
+				ClientSecret:       cs,
+			})
+		default:
+			http.Error(w, "organization have more than one subscription , Please contact Platform support", http.StatusUnprocessableEntity)
+			return
+		}
 	}
 
-	var clientSecret string = ""
-	if s.LatestInvoice.PaymentIntent.ClientSecret != "" {
-		clientSecret = s.LatestInvoice.PaymentIntent.ClientSecret
-	}
-
-	writeJSON(w, struct {
-		SubscriptionID     string `json:"subscriptionId"`
-		SubscriptionStatus string `json:"subscriptionStatus"`
-		ClientSecret       string `json:"clientSecret"`
-	}{
-		SubscriptionID:     s.ID,
-		SubscriptionStatus: string(s.Status),
-		ClientSecret:       clientSecret,
-	})
 }
 
 func createSubscription(w http.ResponseWriter, r *http.Request) {
@@ -321,6 +367,10 @@ func createSubscription(w http.ResponseWriter, r *http.Request) {
 	organization, ok := org.(Organization)
 	if !ok {
 		http.Error(w, "invalid organization context", http.StatusInternalServerError)
+		return
+	}
+	if subID := strings.TrimSpace(organization.StripeSubID); subID != "" {
+		http.Error(w, "subscription already exists", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -353,13 +403,6 @@ func createSubscription(w http.ResponseWriter, r *http.Request) {
 		PaymentBehavior: stripe.String("default_incomplete"),
 	}
 	subscriptionParams.AddExpand("latest_invoice.payment_intent")
-
-	if subID := strings.TrimSpace(organization.StripeSubID); subID != "" {
-		if _, err := sub.Cancel(subID, nil); err != nil {
-			http.Error(w, "Failed to cancel present subscription "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
 
 	s, err := sub.New(subscriptionParams)
 
@@ -459,41 +502,86 @@ func handleRetrieveUpcomingInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateSubscription(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		SubscriptionID string `json:"subscriptionId"`
-		NewPriceID     string `json:"newPriceId"`
+	org := r.Context().Value(ctxOrgKey)
+	organization, ok := org.(Organization)
+	if !ok {
+		http.Error(w, "invalid organization context", http.StatusInternalServerError)
+		return
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Printf("json.NewDecoder.Decode: %v", err)
+	if strings.TrimSpace(organization.StripeSubID) == "" {
+		http.Error(w, "not subscribed to any plan , create plan", http.StatusInternalServerError)
 		return
 	}
 
-	s, err := sub.Get(req.SubscriptionID, nil)
+	var req struct {
+		Plan string `json:"plan"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body "+err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	s, err := sub.Get(strings.TrimSpace(organization.StripeSubID), nil)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "unable to get stripe subscription "+err.Error(), http.StatusInternalServerError)
 		log.Printf("sub.Get: %v", err)
 		return
 	}
 
-	params := &stripe.SubscriptionParams{
-		CancelAtPeriodEnd: stripe.Bool(false),
-		Items: []*stripe.SubscriptionItemsParams{{
-			ID:    stripe.String(s.Items.Data[0].ID),
-			Price: stripe.String(os.Getenv(req.NewPriceID)),
-		}},
+	if (s.Items.Data == nil) || (len(s.Items.Data) < 1) {
+		http.Error(w, "no subscription items "+err.Error(), http.StatusInternalServerError)
+		log.Printf("sub.Get: %v", err)
+		return
 	}
 
-	updatedSubscription, err := sub.Update(req.SubscriptionID, params)
+	updateItem := updateSubItemPrice(req.Plan, s.Items.Data[0].ID)
+	paymentSettings := &stripe.SubscriptionPaymentSettingsParams{
+		SaveDefaultPaymentMethod: stripe.String("on_subscription"),
+	}
+
+	if updateItem == nil {
+		http.Error(w, "Invalid plan :"+req.Plan, http.StatusUnprocessableEntity)
+		return
+	}
+
+	subscriptionParams := &stripe.SubscriptionParams{
+		CancelAtPeriodEnd: stripe.Bool(false),
+		Items:             []*stripe.SubscriptionItemsParams{updateItem},
+		PaymentSettings:   paymentSettings,
+		PaymentBehavior:   stripe.String("default_incomplete"),
+	}
+
+	// subscriptionParams.AddExpand("latest_invoice.payment_intent")
+
+	// params := &stripe.SubscriptionParams{
+	// 	CancelAtPeriodEnd: stripe.Bool(false),
+	// 	Items: []*stripe.SubscriptionItemsParams{{
+	// 		ID:    stripe.String(s.Items.Data[0].ID),
+	// 		Price: stripe.String(os.Getenv(req.NewPriceID)),
+	// 	}},
+	// }
+
+	updatedSubscription, err := sub.Update(s.ID, subscriptionParams)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to update subscription"+err.Error(), http.StatusInternalServerError)
 		log.Printf("sub.Update: %v", err)
 		return
 	}
 
-	writeJSON(w, updatedSubscription)
+	var cs string = ""
+	if updatedSubscription.LatestInvoice.PaymentIntent != nil && updatedSubscription.LatestInvoice.PaymentIntent.ClientSecret != "" {
+		cs = updatedSubscription.LatestInvoice.PaymentIntent.ClientSecret
+	}
+	writeJSON(w, struct {
+		SubscriptionID     string `json:"subscriptionId"`
+		SubscriptionStatus string `json:"subscriptionStatus"`
+		ClientSecret       string `json:"clientSecret"`
+	}{
+		SubscriptionID:     updatedSubscription.ID,
+		SubscriptionStatus: string(updatedSubscription.Status),
+		ClientSecret:       cs,
+	})
 }
 
 func handleRetryInvoice(w http.ResponseWriter, r *http.Request) {
@@ -682,6 +770,13 @@ func checkOrganization(name, email string) (Organization, error) {
 	var org Organization
 	err := db.Get(&org, "SELECT * FROM  organization WHERE name=$1 and email=$2 LIMIT 1 ", name, email)
 	return org, err
+}
+
+func updateSubItemPrice(planName string, subItemID string) *stripe.SubscriptionItemsParams {
+	if priceId, ok := subPlans[planName]; ok {
+		return &stripe.SubscriptionItemsParams{ID: &subItemID, Price: stripe.String(priceId)}
+	}
+	return nil
 }
 
 func getSubItemsPrice(planName string) []*stripe.SubscriptionItemsParams {

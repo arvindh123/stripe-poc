@@ -10,7 +10,6 @@ import { MdOutlineKeyboardBackspace } from 'react-icons/md'
 
 export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
 
-    console.log(org)
     const [errMsg, setErrMsg] = useState("")
     const [isProcessing, setIsProcessing] = useState(false)
     const router = useRouter();
@@ -24,24 +23,30 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
         }
     }
 
+    const getCurrentPlan = ( org: TOrg, plans: TPrice[]) => {
+        return plans.find( (price) => {
+            return ((org.plans) && (org.plans.some(plan => plan.id === price.id)))
+        })
+    }
     const handleSubmit = async (plan: string): Promise<void> => {
         setIsProcessing(true)
+        const method = getCurrentPlan(org, plans) ? "put" : "post"
         const apiURL = process.env.APIURL ? process.env.APIURL : process.env.NEXT_PUBLIC_APIURL ? process.env.NEXT_PUBLIC_APIURL : `http://localhost:8080`
         try {
             const result = await fetch(`${apiURL}/organization/${org.id}/sub`, {
                 body: JSON.stringify({ plan: `${plan}` }),
-                method: "post",
+                method: method,
                 headers: {
                     "content-type": "application/json",
                 },
             })
-            console.log(result)
             if (result.status == 200) {
                 const resp = await result.json()
-                if ((resp.subscriptionStatus == "active") && (resp.clientSecret === "")) {
-                    router.refresh()
+                if ((resp?.clientSecret) && (resp?.clientSecret != "")) {
+                    router.push(`/checkout?payment=${resp?.clientSecret}&id=${org.id}`)
+                    return
                 } else {
-                    router.push(`/checkout?payment=${resp.clientSecret}&id=${org.id}`)
+                    router.push(`/organization/${org.id}`)
                     return
                 }
             } else {
@@ -52,7 +57,6 @@ export default function Plan({ org, plans }: { org: TOrg, plans: TPrice[] }) {
         } catch (err) {
             setErrMsg((err as Error).message)
         }
-
         setIsProcessing(false)
 
     };
