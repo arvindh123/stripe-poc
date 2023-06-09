@@ -51,3 +51,12 @@ export const getPlans = async() => {
         return
     }
 }
+
+export const getPaymentMethods = async(id) => {
+    const res = await fetch(`${apiURL}/organization/${id}/payment-methods`, { cache: 'no-store' })
+    if (res.status == 200) {
+        return await res.json()
+    } else {
+        return
+    }
+}
